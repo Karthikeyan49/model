@@ -54,16 +54,28 @@ Run the whole stack with `python deepscan.py --target <dir> --kg kg.json`.
 
 | Module | Capability | Why a frontier LLM can't match it |
 |---|---|---|
-| `symbolic.py` | **Sound bounded model-check with concrete witness** | Proves a bounds/div-zero property is violated *and* emits a replayable counterexample input; proves `safe` when guarded. An LLM guesses; this is sound for the fragment and never returns a false `safe` (→ `unknown`). |
+| `symbolic.py` | **Sound bounded model-check with concrete witness** | Proves CWE-787 (array write), CWE-369 (div-zero) **and CWE-190 (16-bit INT overflow/underflow)** violated *and* emits a replayable counterexample input; proves `safe` when guarded. Guards are now **flow/block-scoped** (a guard only constrains the statements it textually encloses — a non-dominating `IF` can no longer produce a false `safe`). Handles multi-variable indices `a[i+j+c]` via interval arithmetic. Sound for the fragment; never a false `safe` (→ `unknown`). |
 | `repair.py` | **Verified repair (synthesize + re-prove)** | Generates a patch, then re-runs the prover to *prove* the vulnerability is gone and the code is preserved. LLMs suggest fixes they cannot verify. |
-| `interproc.py` | **Whole-program interprocedural taint** | Compositional function summaries + call-graph fixpoint track taint across calls that don't fit one context window. Scales past any prompt length. |
-| `variant_hunt.py` | **Variant analysis from a seed bug** | Extracts a structural signature and enumerates *every* clone across the corpus (renamed/reconstanted match; guarded = fixed, excluded). No persistent index in an LLM. |
-| `knowledge_graph.py` | **Persistent cross-codebase memory** | Links Pattern↔CWE↔CVE↔Component↔Finding and answers "has this pattern caused a real CVE before?" — institutional memory that grows per scan. |
+| `interproc.py` | **Whole-program interprocedural taint** | Compositional function summaries + call-graph fixpoint track taint across calls that don't fit one context window. Reports the **full source→call-chain→sink path** with the **correct CWE per sink kind** (index→CWE-787, division→CWE-369), and suppresses params **sanitized by an enclosing callee-side guard**. Scales past any prompt length. |
+| `variant_hunt.py` | **Variant analysis from a seed bug** | Extracts a structural signature and enumerates *every* clone across the corpus (renamed/reconstanted match; guarded = fixed, excluded). Covers index-write (CWE-787), division (CWE-369) **and index-read (CWE-125)**, with an optional stricter offset-abstraction match level. No persistent index in an LLM. |
+| `knowledge_graph.py` | **Persistent cross-codebase memory** | Links Pattern↔CWE↔CVE↔Component↔Finding and answers "has this pattern caused a real CVE before?". Now also accumulates per-pattern TP/FP outcomes into a **Beta-Bernoulli prior** `pattern_prior()`, a blended `risk_score()` (prior × CVE-linkage × recurrence), and a **Graphviz `to_dot()`** export — institutional memory that grows per scan. |
+| `mondrian_conformal.py` | **Class-conditional (Mondrian) conformal prediction** | Calibrates a separate FP-budget threshold **per CWE** so the α guarantee holds *within* each weakness class, not just marginally. Small/unseen classes fall back to a pooled threshold, flagged `used_fallback` so operators see where the bound is only marginal. Complements `conformal.py`. |
 
 Each is a *lightweight but genuine* implementation over the IEC 61131-3 ST fragment:
 the point is to demonstrate capabilities that are categorically beyond a forward
 pass, then deepen the engines as the domain widens. They are sound where they claim
 to be (`symbolic` returns `unknown` rather than a false `safe`).
+
+### Honest caveats on the beyond-frontier layer
+- **Symbolic** uses non-relational interval analysis: correlated operands (e.g. `i+j`
+  where `i = -j`) are summed as full ranges, so it may over-approximate to `violated`
+  where a relational prover would prove `safe` — never the reverse. `ELSE`/`ELSIF`
+  branch negations are not modeled (the guard is dropped, conservatively).
+- **Interproc** sanitization only checks that an enclosing guard *references* the sink
+  param by name; it does not prove the guard is *sufficient* (so `IF p>=0 THEN buf[p]`
+  with no upper bound is treated as sanitized). Detection prefers over-reporting.
+- **Mondrian** class-conditional validity holds only for groups meeting `min_group`;
+  smaller groups inherit the pooled, marginal-only threshold.
 
 ## Honest caveats (kept in the code on purpose)
 
