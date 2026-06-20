@@ -401,7 +401,7 @@ def _check_overflow(seg: str, i: int, base: Interval,
         res = ia.sub(ib)
     else:  # '*'
         res = ia.mul(ib)
-    cons = [f"a∈[{ia.lo},{ia.hi}]", f"b∈[{ib.lo},{ib.hi}]",
+    cons = [f"{a}∈[{ia.lo},{ia.hi}]", f"{b}∈[{ib.lo},{ib.hi}]",
             f"result∈[{res.lo},{res.hi}]", f"INT=[{INT_MIN},{INT_MAX}]"]
 
     def _atom_witness(atom: str, iv: Interval, want_hi: bool) -> Dict[str, int]:
