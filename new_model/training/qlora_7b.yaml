@@ -1,0 +1,64 @@
+# Phase 3 — 7B proof-of-concept QLoRA config (Axolotl-compatible).
+# Goal: cheapest possible fine-tune (~$100-300) to GATE the project: does a small
+# fine-tune + the hybrid show an edge over a general model? If not, fix DATA first.
+#
+# Run (on a single 24-48GB GPU, neo-cloud spot instance):
+#   pip install axolotl
+#   accelerate launch -m axolotl.cli.train qlora_7b.yaml
+
+base_model: Qwen/Qwen2.5-Coder-7B-Instruct
+model_type: AutoModelForCausalLM
+tokenizer_type: AutoTokenizer
+
+# --- data: the curated chat-format set from training/curate.py ---
+datasets:
+  - path: data/train.curated.jsonl
+    type: chat_template
+    field_messages: messages
+test_datasets:
+  - path: data/val.jsonl
+    type: chat_template
+    field_messages: messages
+    split: train
+dataset_prepared_path: last_run_prepared
+chat_template: qwen_25
+
+# --- QLoRA (4-bit) — fits a 7B on a single mid-range GPU ---
+load_in_4bit: true
+adapter: qlora
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_linear: true
+
+sequence_len: 4096
+sample_packing: true
+pad_to_sequence_len: true
+
+# --- training schedule (small set: few epochs, watch val loss) ---
+gradient_accumulation_steps: 4
+micro_batch_size: 2
+num_epochs: 3
+optimizer: adamw_bnb_8bit
+lr_scheduler: cosine
+learning_rate: 0.0002
+warmup_ratio: 0.03
+weight_decay: 0.0
+
+bf16: auto
+tf32: true
+gradient_checkpointing: true
+flash_attention: true
+
+# --- checkpointing for spot-instance resilience ---
+save_strategy: steps
+save_steps: 50
+save_total_limit: 3
+evals_per_epoch: 2
+logging_steps: 5
+
+# --- experiment tracking (set WANDB_API_KEY) ---
+wandb_project: plc-vuln-7b
+wandb_name: qlora-poc-v1
+
+output_dir: ./out/qlora-7b-poc

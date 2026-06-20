@@ -1,0 +1,22 @@
+{
+  "_comment": "iec-checker rule/diagnostic id -> [CWE, severity]. Extend as you map iec-checker's ruleset (run `iec-checker --help` / inspect JSON output for exact ids). Unmapped rules fall back to [CWE-Other, low].",
+  "out-of-bounds": ["CWE-787", "high"],
+  "array-out-of-bounds": ["CWE-787", "high"],
+  "buffer-overflow": ["CWE-120", "high"],
+  "uninitialized": ["CWE-457", "medium"],
+  "use-before-init": ["CWE-457", "medium"],
+  "division-by-zero": ["CWE-369", "medium"],
+  "zero-division": ["CWE-369", "medium"],
+  "integer-overflow": ["CWE-190", "medium"],
+  "type-conversion": ["CWE-704", "low"],
+  "implicit-cast": ["CWE-704", "low"],
+  "dead-code": ["CWE-561", "low"],
+  "unreachable-code": ["CWE-561", "low"],
+  "unused-variable": ["CWE-563", "info"],
+  "unused-assignment": ["CWE-563", "info"],
+  "infinite-loop": ["CWE-835", "medium"],
+  "missing-default-case": ["CWE-478", "low"],
+  "hardcoded-address": ["CWE-547", "low"],
+  "PLCOPEN-L10": ["CWE-561", "low"],
+  "PLCOPEN-CP9": ["CWE-457", "medium"]
+}

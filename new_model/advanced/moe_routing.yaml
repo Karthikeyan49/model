@@ -1,0 +1,53 @@
+# Per-CWE LoRA expert routing (parameter-efficient MoE).
+#
+# Idea (non-traditional): instead of ONE adapter that must learn every weakness
+# class, train SEVERAL small LoRA "experts" — each specialised on a CWE family —
+# and route each candidate to the right expert(s) at inference. Cheap (LoRA
+# adapters are tiny), and each expert can be retrained independently as new vuln
+# data arrives, without disturbing the others. The shared base model is loaded
+# once; only adapters swap.
+#
+# This serves the plan's "one engine, swappable domain packs": a domain pack can
+# ship its own expert without retraining the rest.
+
+base_model: Qwen/Qwen2.5-Coder-7B-Instruct
+
+# Router: a cheap classifier picks experts from the candidate's CWE + analyzer
+# rule. Start rule-based (deterministic, debuggable); upgrade to a learned router
+# (logistic / small MLP over candidate features) once you have calibration data.
+router:
+  type: rule_based            # rule_based | learned
+  default_expert: memory_safety
+  rules:
+    - match_cwe: ["CWE-787", "CWE-125", "CWE-120", "CWE-129"]
+      expert: memory_safety
+    - match_cwe: ["CWE-369", "CWE-190", "CWE-191"]
+      expert: arithmetic
+    - match_cwe: ["CWE-457", "CWE-563", "CWE-561"]
+      expert: dataflow_hygiene
+    - match_cwe: ["CWE-306", "CWE-862", "CWE-78"]
+      expert: access_control
+  top_k: 1                    # route to k experts; >1 ensembles their verdicts
+
+# Each expert is an independently-trained QLoRA adapter (reuse qlora_7b.yaml per
+# expert, training only on that CWE family's slice of the curated data).
+experts:
+  memory_safety:
+    adapter_path: out/experts/memory_safety
+    train_filter_cwe: ["CWE-787", "CWE-125", "CWE-120", "CWE-129"]
+  arithmetic:
+    adapter_path: out/experts/arithmetic
+    train_filter_cwe: ["CWE-369", "CWE-190", "CWE-191"]
+  dataflow_hygiene:
+    adapter_path: out/experts/dataflow_hygiene
+    train_filter_cwe: ["CWE-457", "CWE-563", "CWE-561"]
+  access_control:
+    adapter_path: out/experts/access_control
+    train_filter_cwe: ["CWE-306", "CWE-862", "CWE-78"]
+
+# Serving: vLLM supports hot-swapping LoRA adapters per request, so all experts
+# share one resident base model on a single GPU — MoE behaviour at LoRA cost.
+serving:
+  engine: vllm
+  max_loras: 4
+  max_lora_rank: 16

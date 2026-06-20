@@ -1,0 +1,25 @@
+# Generated artifacts — never commit data dumps, indexes, checkpoints
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+out/
+last_run_prepared/
+scan_report.md
+*.sarif
+
+# Pipeline outputs
+baseline/out/
+training/data/*.jsonl
+retrieval/index.json
+engine/*.md
+!engine/correlate.md
+
+# Large datasets — fetched via download_plc_bead.py / cve_index.py, not committed
+baseline/data/plc_bead/
+*.zip
+
+# Model checkpoints / adapters
+*.safetensors
+*.bin
+qlora-*/

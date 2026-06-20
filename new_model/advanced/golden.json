@@ -1,0 +1,12 @@
+{
+  "_comment": "Frozen quality bar for the sample set. CI fails if the pipeline regresses below these. Tighten as the real model improves.",
+  "min_recall": 0.8,
+  "min_precision": 0.7,
+  "max_fp_per_prog": 0.5,
+  "must_find": [
+    {"pid": "arr_oob_1.st", "cwe": "CWE-787"},
+    {"pid": "arr_oob_2.st", "cwe": "CWE-787"},
+    {"pid": "div_zero_1.st", "cwe": "CWE-369"},
+    {"pid": "div_zero_2.st", "cwe": "CWE-369"}
+  ]
+}

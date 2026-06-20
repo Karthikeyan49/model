@@ -1,0 +1,38 @@
+# Phase 1 hybrid baseline configuration.
+# Defaults run end-to-end on bundled sample data with mock backends.
+
+ingest:
+  # Point at PLC-BEAD once downloaded; "sample" uses the bundled smoke-test set.
+  dataset: sample            # sample | plc_bead
+  dataset_path: data/sample
+  holdout_seed: 1337         # fixed split so the eval set is never tuned on
+  holdout_frac: 0.5
+
+analyzer:
+  # iec-checker static analyzer. If binary is missing, a mock analyzer is used.
+  binary: iec-checker        # path or name on PATH
+  args: ["--quiet"]
+  mock_if_missing: true
+
+triage:
+  # provider: mock | anthropic | vllm
+  provider: mock
+  model: claude-haiku-4-5-20251001   # cheap triage model when provider=anthropic
+  vllm_base_url: http://localhost:8000/v1
+  vllm_model: Qwen2.5-Coder-7B-Instruct
+  temperature: 0.0
+  max_tokens: 512
+
+baseline:
+  # Arm A: the frontier model the hybrid must beat (free-scan, no grounding).
+  frontier_provider: mock    # mock | anthropic
+  frontier_model: claude-opus-4-8
+
+eval:
+  # Fix recall here, then report precision/FP-rate at that operating point.
+  target_recall: 0.80
+  severity_floor: low        # ignore findings below this severity in scoring
+
+report:
+  out_dir: out
+  format: markdown

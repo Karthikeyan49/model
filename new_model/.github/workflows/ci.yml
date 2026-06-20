@@ -1,0 +1,45 @@
+name: model-ci
+
+# CI for the cybersecurity specialist model scaffold. Runs the pipeline smoke
+# tests + unit tests on every push/PR touching new_model/.
+on:
+  push:
+    paths: ["new_model/**"]
+  pull_request:
+    paths: ["new_model/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: new_model
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pyyaml
+
+      - name: Byte-compile all modules
+        run: python -m py_compile baseline/*.py training/*.py retrieval/*.py engine/*.py tools/*.py
+
+      - name: Unit tests
+        run: pytest -q tests/
+
+      - name: Pipeline smoke (mock backends)
+        run: |
+          (cd baseline && python run.py --config config.yaml)
+          (cd baseline && python sweep.py --config config.yaml)
+          (cd advanced && python pipeline.py --target ../baseline/data/sample --alpha 0.1)
+          (cd advanced && python deepscan.py --target ../baseline/data/sample)
+          (cd training && python convert.py --config ../baseline/config.yaml --out-dir data \
+                       && python curate.py --in data/train.jsonl --out-dir data)
+
+      - name: Regression gate (fails the build on detection regression)
+        run: cd advanced && python regression_gate.py --golden golden.json

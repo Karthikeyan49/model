@@ -1,0 +1,6 @@
+# Phase 1 baseline — minimal deps. Real backends are optional (mock fallbacks exist).
+pyyaml>=6.0
+# Optional: real LLM triage via Anthropic. Uncomment to use.
+# anthropic>=0.40
+# Optional: local/served open model via an OpenAI-compatible vLLM endpoint.
+# openai>=1.0

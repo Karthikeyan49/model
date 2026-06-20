@@ -1,0 +1,8 @@
+{
+  "arr_oob_1.st": [{"line": 6, "cwe": "CWE-787", "severity": "high"}],
+  "arr_oob_2.st": [{"line": 6, "cwe": "CWE-787", "severity": "high"}],
+  "div_zero_1.st": [{"line": 6, "cwe": "CWE-369", "severity": "medium"}],
+  "div_zero_2.st": [{"line": 6, "cwe": "CWE-369", "severity": "medium"}],
+  "clean_1.st": [],
+  "clean_2.st": []
+}
