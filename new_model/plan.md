@@ -35,7 +35,7 @@
 | **Beyond-frontier — interprocedural taint** (CWE-refined + sanitization) | `advanced/interproc.py` | ✅ summaries + fixpoint |
 | **Beyond-frontier — variant hunting** (CWE-787/125) | `advanced/variant_hunt.py` | ✅ structural signatures |
 | **Beyond-frontier — knowledge graph** | `advanced/knowledge_graph.py` | ✅ persistent memory |
-| Test suite + CI | `tests/`, `.github/workflows/ci.yml` | ✅ 91 passing |
+| Test suite + CI | `tests/`, `.github/workflows/ci.yml` | ✅ 93 passing |
 | Task runner | `Makefile` | ✅ |
 
 Remaining (needs real assets/compute, not code): obtain PLC-BEAD source + vuln
