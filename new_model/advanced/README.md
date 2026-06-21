@@ -39,7 +39,8 @@ system *reliable*, not just clever:
 |---|---|---|
 | `calibration_metrics.py` | ECE / MCE / Brier / reliability diagram | Is a "0.8 confidence" actually right 80% of the time? Prerequisite for the conformal bound to mean anything. |
 | `metamorphic.py` | Semantics-preserving mutation testing | Does the verdict survive renaming/comments? Flags brittle detections that can't be trusted. |
-| `drift.py` | PSI + KS distribution-drift detection | Conformal's guarantee assumes iid; this detects when production data drifts and the bound goes stale → RECALIBRATE. |
+| `drift.py` | PSI + KS distribution-drift detection (+ `combined_assessment()`) | Conformal's guarantee assumes iid; this detects when production data drifts and the bound goes stale. `combined_assessment()` fuses PSI+KS into one fail-safe verdict (`OK`/`MONITOR`/`RECALIBRATE`) using the standard PSI bands (<0.1 / 0.1–0.25 / >0.25), making the recalibrate decision actionable. |
+| `conformal.py` (Mondrian) | Class-conditional conformal thresholds | `mondrian_thresholds()` controls the FP budget *within each CWE class*, not just marginally; under-sampled classes return `ABSTAIN_THRESHOLD` (never a misleadingly loose bound). Still assumes exchangeability within a class. |
 | `active_learning.py` | Margin / entropy sampling + diversity | Turns the abstain bucket into the most informative labels — the data flywheel with minimal human effort. |
 | `provenance.py` | Hashed, replayable evidence chain | Every finding carries why it fired (rule → votes → taint → signals → threshold); tamper-evident audit trail. |
 | `rag_triage.py` | BM25-grounded triage (CWE KB + exemplars) | Cuts hallucinated verdicts by grounding the LLM in real CWE references and known cases. |
@@ -59,7 +60,7 @@ Run the whole stack with `python deepscan.py --target <dir> --kg kg.json`.
 | `repair.py` | **Verified repair (synthesize + re-prove)** | Generates a patch, then re-runs the prover to *prove* the vulnerability is gone and the code is preserved. LLMs suggest fixes they cannot verify. |
 | `interproc.py` | **Whole-program interprocedural taint** | Compositional function summaries + call-graph fixpoint track taint across calls that don't fit one context window, refine the **CWE by the actual sink** (index→787, div→369), and honor **interprocedural sanitization** (a param bounded by a dominating guard is not reported). Scales past any prompt length. |
 | `variant_hunt.py` | **Variant analysis from a seed bug** | Extracts a structural signature and enumerates *every* clone across the corpus — index-**write** (CWE-787) and out-of-bounds **read** (CWE-125); renamed/reconstanted match; guarded = fixed, excluded; kinds never cross-match. No persistent index in an LLM. |
-| `knowledge_graph.py` | **Persistent cross-codebase memory** | Links Pattern↔CWE↔CVE↔Component↔Finding and answers "has this pattern caused a real CVE before?" — institutional memory that grows per scan. |
+| `knowledge_graph.py` | **Persistent cross-codebase memory** | Links Pattern↔CWE↔CVE↔Component↔Finding and answers "has this pattern caused a real CVE before?". Stores **CVE severity** and exposes `prioritize()` (recurrence × max reachable severity) and `explain()` (deterministic Pattern→CWE→CVE→Component provenance chains) — institutional memory that grows per scan. |
 
 ### Symbolic fragment — CWE classes proven
 
