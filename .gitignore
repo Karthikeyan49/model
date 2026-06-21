@@ -1,0 +1,4 @@
+# Python virtualenvs (local test setup, not project code)
+.venv/
+__pycache__/
+*.pyc
