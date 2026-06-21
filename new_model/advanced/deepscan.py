@@ -1,11 +1,12 @@
 """Deep analysis CLI — chains the beyond-frontier capabilities on a target dir:
 
-    symbolic proof  →  verified repair  →  variant hunt  →  knowledge graph
+    symbolic proof  →  verified repair  →  termination  →  variant hunt  →  KG
 
 For each program: prove which safety properties are VIOLATED (with witnesses),
-synthesize and re-verify a patch for each, hunt the whole corpus for structural
-variants of every proven bug, and record everything in the persistent KG so the
-next scan starts smarter.
+synthesize and re-verify a patch for each, prove which loops cannot terminate
+(CWE-835 — a PLC scan-cycle / watchdog hazard), hunt the whole corpus for
+structural variants of every proven bug, and record everything in the persistent
+KG so the next scan starts smarter.
 
 Run:
   python deepscan.py --target ../baseline/data/sample
@@ -25,6 +26,7 @@ import ingest                 # noqa: E402  baseline
 import knowledge_graph as kgmod  # noqa: E402
 import repair                 # noqa: E402
 import symbolic               # noqa: E402
+import termination            # noqa: E402
 import variant_hunt           # noqa: E402
 
 
@@ -57,6 +59,19 @@ def run(target: str, kg_path: str | None = None):
     for p, pt in patches:
         print(f"  {p.pid}:{pt.line}  {pt.cwe}  verified={pt.verified} — {pt.rationale}")
 
+    print("\n=== NON-TERMINATION (CWE-835 loop / scan-cycle hazards) ===")
+    infinite = []
+    for p in programs:
+        for r in termination.check(p):
+            if r.status == "infinite":
+                infinite.append((p, r))
+                print(f"  {p.pid}:{r.line}  {r.render()}")
+                # record the loop as a pattern so recurrence is tracked across scans
+                kg.add_finding(f"{p.pid}:{r.line}", f"infinite-loop|{r.kind}",
+                               r.cwe, "")
+    if not infinite:
+        print("  none proven infinite")
+
     print("\n=== VARIANT HUNT (clones of each proven bug across corpus) ===")
     seen_sigs = set()
     for p, r in proven:
@@ -75,7 +90,7 @@ def run(target: str, kg_path: str | None = None):
     if kg_path:
         kg.save(kg_path)
         print(f"  persisted -> {kg_path}")
-    return proven, patches
+    return proven, patches, infinite
 
 
 def main() -> None:
