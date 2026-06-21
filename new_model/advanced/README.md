@@ -44,6 +44,20 @@ system *reliable*, not just clever:
 | `provenance.py` | Hashed, replayable evidence chain | Every finding carries why it fired (rule → votes → taint → signals → threshold); tamper-evident audit trail. |
 | `rag_triage.py` | BM25-grounded triage (CWE KB + exemplars) | Cuts hallucinated verdicts by grounding the LLM in real CWE references and known cases. |
 | `regression_gate.py` | Golden-set CI gate | Fails the build if a change silently lowers recall/precision or loses a known bug — evaluation discipline enforced. |
+| `mondrian_conformal.py` | Class-conditional (Mondrian) conformal | One global FP budget over-emits one CWE while over-abstaining another; this calibrates a separate threshold *per CWE* so α holds within each class (Vovk et al.). Small classes fall back to a pooled threshold, flagged. |
+| `risk_control.py` | Conformal Risk Control + Learn-then-Test | `conformal.py` bounds false positives among emitted; this bounds the **miss-rate** (false negatives) — the other safety axis — with a finite-sample guarantee, and certifies thresholds with FWER control. (arXiv 2208.02814, 2110.01052) |
+| `venn_abers.py` | Venn-Abers probability intervals | Turns any scorer's confidence into a *provably calibrated* probability interval `[p0,p1]` (isotonic/PAV); interval width is an honest epistemic-uncertainty signal. (Vovk & Petej 2014) |
+
+## Accuracy / sound-analysis additions
+
+These sharpen the static/symbolic side — fewer false positives without ever sacrificing soundness.
+
+| Module | Technique | What it improves |
+|---|---|---|
+| `relational.py` | Octagon/DBM relational domain | The interval domain over-approximates `a[i+j]` to `violated` even when guards bound `i+j`; this relational refinement (Miné 2006) *proves* such indices safe — but only downgrades `violated→safe` when rigorously provable, never a false `safe`. |
+| `slicing.py` | Static backward program slicing | Backward slice from a sink over data + control dependences (Weiser 1981; Horwitz-Reps-Binkley PDG/SDG) → minimal operator-readable evidence and a precise reachability input. Over-approximates (includes when in doubt). |
+
+See [`RESEARCH.md`](RESEARCH.md) for the cited SOTA survey and prioritized roadmap behind these.
 
 ## Beyond-frontier capabilities — what a stateless LLM structurally cannot do
 

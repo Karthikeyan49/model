@@ -48,8 +48,10 @@ No exploit generation.
 | Ingestion / grounding | `baseline/` | `ingest`, `analyzer`, `rule_map.json`, `verify` |
 | Triage / output | `baseline/` | `triage`, `reachability`, `eval`, `sweep`, `report`, `sarif` |
 | Advanced reasoning | `advanced/` | `scoring`, `selfconsistency`, `dataflow`, `ensemble`, `conformal`, `mockcourt`, `router`, `pipeline` |
-| Reliability | `advanced/` | `calibration_metrics`, `metamorphic`, `drift`, `active_learning`, `provenance`, `rag_triage`, `regression_gate`, `mondrian_conformal` |
+| Reliability | `advanced/` | `calibration_metrics`, `metamorphic`, `drift`, `active_learning`, `provenance`, `rag_triage`, `regression_gate`, `mondrian_conformal`, `risk_control` (CRC+LTT), `venn_abers` |
+| Accuracy / sound analysis | `advanced/` | `relational` (octagon-lite), `slicing` (backward PDG slice) |
 | Beyond-frontier | `advanced/` | `symbolic` (CWE-787/369/190, flow-scoped), `repair`, `interproc`, `variant_hunt` (787/369/125), `knowledge_graph`, `deepscan` |
+| Research | `advanced/` | `RESEARCH.md` (cited SOTA survey + roadmap) |
 | Retrieval | `retrieval/` | `cve_index` |
 | Correlation | `engine/` | `correlate` |
 | Training | `training/` | `prompts`, `convert`, `curate`, `qlora_7b.yaml` |
