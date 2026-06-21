@@ -54,7 +54,7 @@ No exploit generation.
 | Correlation | `engine/` | `correlate` |
 | Training | `training/` | `prompts`, `convert`, `curate`, `qlora_7b.yaml` |
 | Interface | top level | `scan.py` (CLI), `Makefile`, CI |
-| Tooling / tests | `tools/`, `tests/` | `gen_synthetic`, 93 unit tests |
+| Tooling / tests | `tools/`, `tests/` | `gen_synthetic`, 105 unit tests |
 
 ## Two design invariants
 
