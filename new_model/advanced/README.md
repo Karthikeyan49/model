@@ -38,6 +38,8 @@ system *reliable*, not just clever:
 | Module | Technique | What reliability problem it solves |
 |---|---|---|
 | `calibration_metrics.py` | ECE / MCE / Brier / reliability diagram | Is a "0.8 confidence" actually right 80% of the time? Prerequisite for the conformal bound to mean anything. |
+| `conformal.py` (Mondrian) | **Class-conditional conformal thresholds** | `mondrian_thresholds()` controls the FP budget *within each CWE class*, not just marginally; under-sampled classes abstain (`ABSTAIN_THRESHOLD`) rather than emit on a misleadingly loose bound. Still assumes exchangeability within a class. |
+| `drift.py` (combined) | **Fused PSI+KS drift verdict** | `combined_assessment()` returns a single actionable verdict (`OK`/`MONITOR`/`RECALIBRATE`) using the standard PSI bands (<0.1 / 0.1–0.25 / >0.25), fail-safe to the more severe metric — turns the "recalibrate on drift" caveat into a decision. |
 | `metamorphic.py` | Semantics-preserving mutation testing | Does the verdict survive renaming/comments? Flags brittle detections that can't be trusted. |
 | `drift.py` | PSI + KS distribution-drift detection | Conformal's guarantee assumes iid; this detects when production data drifts and the bound goes stale → RECALIBRATE. |
 | `active_learning.py` | Margin / entropy sampling + diversity | Turns the abstain bucket into the most informative labels — the data flywheel with minimal human effort. |
@@ -54,11 +56,11 @@ Run the whole stack with `python deepscan.py --target <dir> --kg kg.json`.
 
 | Module | Capability | Why a frontier LLM can't match it |
 |---|---|---|
-| `symbolic.py` | **Sound bounded model-check with concrete witness** | Proves a bounds/div-zero property is violated *and* emits a replayable counterexample input; proves `safe` when guarded. An LLM guesses; this is sound for the fragment and never returns a false `safe` (→ `unknown`). |
+| `symbolic.py` | **Sound bounded model-check with concrete witness** | Proves a bounds/div-zero/**integer-overflow** property is violated *and* emits a replayable counterexample input; proves `safe` when guarded. Now covers **multi-variable linear indices** (`a[i+j]`) via interval arithmetic over guarded operands, and **16-bit INT overflow/underflow** (CWE-190/191) on `+`/`-`/`*`. An LLM guesses; this is sound for the fragment and never returns a false `safe` (→ `unknown`). |
 | `repair.py` | **Verified repair (synthesize + re-prove)** | Generates a patch, then re-runs the prover to *prove* the vulnerability is gone and the code is preserved. LLMs suggest fixes they cannot verify. |
-| `interproc.py` | **Whole-program interprocedural taint** | Compositional function summaries + call-graph fixpoint track taint across calls that don't fit one context window. Scales past any prompt length. |
-| `variant_hunt.py` | **Variant analysis from a seed bug** | Extracts a structural signature and enumerates *every* clone across the corpus (renamed/reconstanted match; guarded = fixed, excluded). No persistent index in an LLM. |
-| `knowledge_graph.py` | **Persistent cross-codebase memory** | Links Pattern↔CWE↔CVE↔Component↔Finding and answers "has this pattern caused a real CVE before?" — institutional memory that grows per scan. |
+| `interproc.py` | **Whole-program interprocedural taint** | Compositional function summaries + call-graph fixpoint track taint across calls that don't fit one context window. Now reports the **CWE of the actual sink reached** (787 index vs 369 division), excludes **interprocedurally sanitized** sinks (guard-dominated params), and follows **`VAR_OUTPUT` → call-site `out =>` bindings** for two-hop source→FB1 output→FB2 sink chains. Scales past any prompt length. |
+| `variant_hunt.py` | **Variant analysis from a seed bug** | Extracts a structural signature and enumerates *every* clone across the corpus (renamed/reconstanted match; guarded = fixed, excluded). Signature kinds now include **index-write, index-read (CWE-125), division, and loop-index**, with optional **constant-offset sensitivity**. No persistent index in an LLM. |
+| `knowledge_graph.py` | **Persistent cross-codebase memory** | Links Pattern↔CWE↔CVE↔Component↔Finding and answers "has this pattern caused a real CVE before?". Now stores **CVE severity** and exposes `prioritize()` (recurrence × max reachable severity) and `explain()` (deterministic Pattern→CWE→CVE→Component provenance chains) — institutional memory that grows per scan. |
 
 Each is a *lightweight but genuine* implementation over the IEC 61131-3 ST fragment:
 the point is to demonstrate capabilities that are categorically beyond a forward
@@ -75,6 +77,15 @@ to be (`symbolic` returns `unknown` rather than a false `safe`).
 - **Mock scorers are for plumbing, not results.** Confidence numbers become
   meaningful only when `scoring.MockScorer` / the mock sampler are replaced with
   real LLM logprobs or sampled verdicts.
+- **The symbolic fragment is deliberately small.** It is sound *within* its
+  fragment (linear indices in ≤2 unit-coefficient variables; `+`/`-`/`*` INT
+  arithmetic; INT assumed 16-bit). Scaled coefficients, ≥3 variables, non-linear
+  forms, loops, and non-INT numeric types fall outside it and return `unknown` —
+  never a false `safe`. Widening the fragment is future work; the contract is
+  that soundness is preserved as it grows.
+- **Variant hunting is a heuristic matcher, not a prover.** It surfaces
+  structurally similar *candidates* to review (guarded clones excluded); it does
+  not claim each hit is exploitable.
 
 ## Run it
 
