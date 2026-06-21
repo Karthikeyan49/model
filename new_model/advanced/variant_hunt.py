@@ -24,16 +24,28 @@ from schema import Program
 
 _INDEX_WRITE = re.compile(r"([A-Za-z_]\w*)\s*\[\s*([A-Za-z_]\w*)\s*([+\-]\s*\d+)?\s*\]\s*:=")
 _DIV = re.compile(r":=\s*[^;]*?/\s*([A-Za-z_]\w*|\d+)")
+# RHS array read: ` := ... arr[i] ...` where the indexed expr is NOT immediately
+# followed by ":=" (that would be an index-write, handled above).
+_INDEX_READ = re.compile(
+    r":=\s*[^;]*?([A-Za-z_]\w*)\s*\[\s*([A-Za-z_]\w*)\s*([+\-]\s*\d+)?\s*\](?!\s*:=)")
+# FOR loop header: `FOR i := lo TO hi [BY ...] DO`
+_FOR = re.compile(
+    r"\bFOR\b\s+([A-Za-z_]\w*)\s*:=\s*[^;]+?\bTO\b\s+([^;]+?)(?:\bBY\b|\bDO\b)",
+    re.IGNORECASE)
+# any array indexed by a bare variable (used to spot loop-var indexing in a body)
+_INDEX_ANY = re.compile(r"([A-Za-z_]\w*)\s*\[\s*([A-Za-z_]\w*)\s*([+\-]\s*\d+)?\s*\]")
 _GUARD_CMP = re.compile(r"\bIF\b[^;]*?\b([A-Za-z_]\w*)\b\s*(<=|>=|<>|<|>)", re.IGNORECASE)
 
 
 @dataclass
 class Signature:
-    kind: str                  # "index-write" | "division"
+    kind: str                  # "index-write" | "division" | "index-read" | "loop-index"
     guarded_var: bool          # is the index/divisor var constrained by a guard?
     cwe: str
+    has_offset: bool = False   # does a constant offset appear (arr[i+1] vs arr[i])?
 
     def key(self) -> str:
+        # NOTE: has_offset is intentionally excluded so legacy keys are stable.
         return f"{self.kind}|guarded={self.guarded_var}|{self.cwe}"
 
 
@@ -49,6 +61,11 @@ def _guarded_vars(source: str) -> set:
     return {m.group(1) for m in _GUARD_CMP.finditer(source)}
 
 
+def _has_offset(grp) -> bool:
+    """True when the optional constant-offset group matched (e.g. `i+1`)."""
+    return bool(grp and grp.strip())
+
+
 def _signatures_in(program: Program) -> List[Variant]:
     guarded = _guarded_vars(program.source)
     out: List[Variant] = []
@@ -57,7 +74,17 @@ def _signatures_in(program: Program) -> List[Variant]:
         if mi:
             idx_var = mi.group(2)
             out.append(Variant(program.pid, i, line.strip(),
-                               Signature("index-write", idx_var in guarded, "CWE-787")))
+                               Signature("index-write", idx_var in guarded, "CWE-787",
+                                         has_offset=_has_offset(mi.group(3)))))
+        else:
+            # index-read on the RHS — only when this isn't an index-write line,
+            # so a write statement is never double-counted as a read.
+            mr = _INDEX_READ.search(line)
+            if mr:
+                idx_var = mr.group(2)
+                out.append(Variant(program.pid, i, line.strip(),
+                                   Signature("index-read", idx_var in guarded, "CWE-125",
+                                             has_offset=_has_offset(mr.group(3)))))
         md = _DIV.search(line)
         if md:
             dv = md.group(1)
@@ -65,6 +92,21 @@ def _signatures_in(program: Program) -> List[Variant]:
             out.append(Variant(program.pid, i, line.strip(),
                                Signature("division", (dv in guarded) if is_var else True,
                                          "CWE-369")))
+        mf = _FOR.search(line)
+        if mf:
+            loop_var = mf.group(1)
+            # Does the loop body index an array with the loop variable? Scan the
+            # remainder of the program after the FOR header for `arr[loop_var..]`.
+            rest = "\n".join(program.source.splitlines()[i:])
+            body_idx = [m for m in _INDEX_ANY.finditer(rest)
+                        if m.group(2) == loop_var]
+            if body_idx:
+                # guarded only if the loop variable itself is constrained by an
+                # explicit IF guard (the TO bound is a structural risk we flag).
+                offset = any(_has_offset(m.group(3)) for m in body_idx)
+                out.append(Variant(program.pid, i, line.strip(),
+                                   Signature("loop-index", loop_var in guarded,
+                                             "CWE-787", has_offset=offset)))
     return out
 
 
@@ -76,10 +118,22 @@ def seed_signature(seed_program: Program, line: int) -> Optional[Signature]:
 
 
 def hunt(seed_signature: Signature, corpus: List[Program],
-         require_unguarded: bool = True) -> List[Variant]:
+         require_unguarded: bool = True,
+         match_offset: bool = False) -> List[Variant]:
     """Find all statements across `corpus` matching the seed's structure.
+
     By default only returns UNGUARDED matches (the still-vulnerable variants);
-    guarded matches are treated as already-fixed and excluded."""
+    guarded matches are treated as already-fixed and excluded.
+
+    Heuristic structural matcher: it surfaces candidates for human review, not a
+    formal proof of vulnerability. Guard dominance is honoured (guarded =>
+    excluded) but the matcher does not claim soundness beyond that.
+
+    If `match_offset` is True, candidates must additionally agree with the seed
+    on whether a constant offset is present (so a seed of `arr[i+1]` will not
+    pull in plain `arr[i]` matches, and vice versa). Defaults to False so the
+    existing behaviour is unchanged.
+    """
     hits: List[Variant] = []
     for prog in corpus:
         for v in _signatures_in(prog):
@@ -88,6 +142,8 @@ def hunt(seed_signature: Signature, corpus: List[Program],
             if not same:
                 continue
             if require_unguarded and v.signature.guarded_var:
+                continue
+            if match_offset and v.signature.has_offset != seed_signature.has_offset:
                 continue
             hits.append(v)
     return hits
