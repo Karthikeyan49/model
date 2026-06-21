@@ -54,11 +54,23 @@ Run the whole stack with `python deepscan.py --target <dir> --kg kg.json`.
 
 | Module | Capability | Why a frontier LLM can't match it |
 |---|---|---|
-| `symbolic.py` | **Sound bounded model-check with concrete witness** | Proves a bounds/div-zero property is violated *and* emits a replayable counterexample input; proves `safe` when guarded. An LLM guesses; this is sound for the fragment and never returns a false `safe` (→ `unknown`). |
+| `symbolic.py` | **Sound bounded model-check with concrete witness** | Proves a bounds/div-zero/**overflow** property is violated *and* emits a replayable counterexample input; proves `safe` when guarded. Guards are **block-scoped** (only constrain statements they lexically dominate). An LLM guesses; this is sound for the fragment and never returns a false `safe` (→ `unknown`). |
+| `termination.py` | **Sound non-termination proof (CWE-835)** | Proves a loop *cannot* exit (constant-true guard / guard var never updated, no `EXIT;`) — a PLC scan-cycle / watchdog hazard. Proves `safe` only on justified progress; everything else → `unknown`, never a false `safe`. An LLM can only guess "looks infinite". |
 | `repair.py` | **Verified repair (synthesize + re-prove)** | Generates a patch, then re-runs the prover to *prove* the vulnerability is gone and the code is preserved. LLMs suggest fixes they cannot verify. |
-| `interproc.py` | **Whole-program interprocedural taint** | Compositional function summaries + call-graph fixpoint track taint across calls that don't fit one context window. Scales past any prompt length. |
-| `variant_hunt.py` | **Variant analysis from a seed bug** | Extracts a structural signature and enumerates *every* clone across the corpus (renamed/reconstanted match; guarded = fixed, excluded). No persistent index in an LLM. |
+| `interproc.py` | **Whole-program interprocedural taint** | Compositional function summaries + call-graph fixpoint track taint across calls that don't fit one context window, refine the **CWE by the actual sink** (index→787, div→369), and honor **interprocedural sanitization** (a param bounded by a dominating guard is not reported). Scales past any prompt length. |
+| `variant_hunt.py` | **Variant analysis from a seed bug** | Extracts a structural signature and enumerates *every* clone across the corpus — index-**write** (CWE-787) and out-of-bounds **read** (CWE-125); renamed/reconstanted match; guarded = fixed, excluded; kinds never cross-match. No persistent index in an LLM. |
 | `knowledge_graph.py` | **Persistent cross-codebase memory** | Links Pattern↔CWE↔CVE↔Component↔Finding and answers "has this pattern caused a real CVE before?" — institutional memory that grows per scan. |
+
+### Symbolic fragment — CWE classes proven
+
+| CWE | Property | Witness |
+|---|---|---|
+| CWE-787 | array index write stays in declared `[lo,hi]` | index variable value out of bounds |
+| CWE-125 | array index read in bounds (via `variant_hunt`) | — |
+| CWE-369 | divisor cannot be 0 | divisor = 0 |
+| CWE-190 | `a*v+b` cannot exceed `INT_MAX` (32767) | operand value forcing overflow |
+| CWE-191 | `a*v+b` cannot drop below `INT_MIN` (−32768) | operand value forcing underflow |
+| CWE-835 | a loop's exit condition is reachable (`termination.py`) | structural proof (guard never updated) |
 
 Each is a *lightweight but genuine* implementation over the IEC 61131-3 ST fragment:
 the point is to demonstrate capabilities that are categorically beyond a forward
@@ -75,6 +87,19 @@ to be (`symbolic` returns `unknown` rather than a false `safe`).
 - **Mock scorers are for plumbing, not results.** Confidence numbers become
   meaningful only when `scoring.MockScorer` / the mock sampler are replaced with
   real LLM logprobs or sampled verdicts.
+- **The symbolic checker reasons over the *type domain*, not the precision-tuned
+  emit path.** An unconstrained 16-bit `INT` is treated as ranging over the full
+  `[-32768, 32767]`, so `symbolic.check` reports a CWE-190/191 overflow as
+  `violated` for any unguarded `v ± c` (witness = the extremal operand). This is
+  *sound* — such code genuinely can overflow — and consistent with how the bounds
+  check treats an unconstrained index. It is intentionally a *recall-maximal*
+  signal: in the full pipeline these feed the ensemble/conformal layers (which
+  rank, calibrate, and **abstain**) rather than being emitted raw. Narrowing the
+  operand range (declared subtypes, value-range analysis) is what turns a latent
+  overflow into a precise one.
+- **`termination.py` is sound, not complete.** It proves `infinite` only when
+  structurally certain and `safe` only on justified progress; the large `unknown`
+  bucket is the honest cost of never emitting a false `safe` on a loop that hangs.
 
 ## Run it
 

@@ -29,7 +29,13 @@
 | **Advanced — ensemble fusion** | `advanced/ensemble.py` | ✅ multi-signal |
 | **Advanced — per-CWE LoRA MoE** | `advanced/moe_routing.yaml`, `router.py` | ✅ rule router |
 | **Advanced — full pipeline** | `advanced/pipeline.py` | ✅ end-to-end |
-| Test suite + CI | `tests/`, `.github/workflows/ci.yml` | ✅ 22 passing |
+| **Beyond-frontier — symbolic BMC** (CWE-787/369/190/191, block-scoped guards) | `advanced/symbolic.py` | ✅ sound, witness-carrying |
+| **Beyond-frontier — non-termination** (CWE-835 scan-cycle/watchdog) | `advanced/termination.py` | ✅ sound, structural proof |
+| **Beyond-frontier — verified repair** | `advanced/repair.py` | ✅ synthesize + re-prove |
+| **Beyond-frontier — interprocedural taint** (CWE-refined + sanitization) | `advanced/interproc.py` | ✅ summaries + fixpoint |
+| **Beyond-frontier — variant hunting** (CWE-787/125) | `advanced/variant_hunt.py` | ✅ structural signatures |
+| **Beyond-frontier — knowledge graph** | `advanced/knowledge_graph.py` | ✅ persistent memory |
+| Test suite + CI | `tests/`, `.github/workflows/ci.yml` | ✅ 91 passing |
 | Task runner | `Makefile` | ✅ |
 
 Remaining (needs real assets/compute, not code): obtain PLC-BEAD source + vuln

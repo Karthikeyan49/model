@@ -49,12 +49,12 @@ No exploit generation.
 | Triage / output | `baseline/` | `triage`, `reachability`, `eval`, `sweep`, `report`, `sarif` |
 | Advanced reasoning | `advanced/` | `scoring`, `selfconsistency`, `dataflow`, `ensemble`, `conformal`, `mockcourt`, `router`, `pipeline` |
 | Reliability | `advanced/` | `calibration_metrics`, `metamorphic`, `drift`, `active_learning`, `provenance`, `rag_triage`, `regression_gate` |
-| Beyond-frontier | `advanced/` | `symbolic`, `repair`, `interproc`, `variant_hunt`, `knowledge_graph`, `deepscan` |
+| Beyond-frontier | `advanced/` | `symbolic` (CWE-787/369/190/191, block-scoped guards), `termination` (CWE-835), `repair`, `interproc` (CWE-refined + sanitization), `variant_hunt` (CWE-787/125), `knowledge_graph`, `deepscan` |
 | Retrieval | `retrieval/` | `cve_index` |
 | Correlation | `engine/` | `correlate` |
 | Training | `training/` | `prompts`, `convert`, `curate`, `qlora_7b.yaml` |
 | Interface | top level | `scan.py` (CLI), `Makefile`, CI |
-| Tooling / tests | `tools/`, `tests/` | `gen_synthetic`, 22 unit tests |
+| Tooling / tests | `tools/`, `tests/` | `gen_synthetic`, 91 unit tests |
 
 ## Two design invariants
 
