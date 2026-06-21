@@ -66,6 +66,9 @@ def run(target: str, kg_path: str | None = None):
             if r.status == "infinite":
                 infinite.append((p, r))
                 print(f"  {p.pid}:{r.line}  {r.render()}")
+                # record the loop as a pattern so recurrence is tracked across scans
+                kg.add_finding(f"{p.pid}:{r.line}", f"infinite-loop|{r.kind}",
+                               r.cwe, "")
     if not infinite:
         print("  none proven infinite")
 
